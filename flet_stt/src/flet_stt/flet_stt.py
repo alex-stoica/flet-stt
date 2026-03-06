@@ -18,6 +18,16 @@ class SttError(Exception):
 class FletStt(ft.Service):
     """Speech-to-text service using OS-native recognition.
 
+    WARNING: do not add this to page.overlay, page.controls, or page.add().
+    It registers itself automatically. Adding it to the UI tree causes a
+    red crash screen on Android with no useful error message.
+
+    Correct usage:
+        stt = FletStt()
+        stt.on_result = my_handler
+        await stt.initialize()
+        await stt.listen()
+
     Wraps the Flutter speech_to_text package. On Android this uses Google
     Speech Services (on-device for ~50 languages). On iOS it uses Apple's
     SFSpeechRecognizer.
@@ -37,6 +47,8 @@ class FletStt(ft.Service):
     on_sound_level: Optional[ControlEventHandler["FletStt"]] = None
     on_error: Optional[ControlEventHandler["FletStt"]] = None
     on_status: Optional[ControlEventHandler["FletStt"]] = None
+
+    _initialized: bool = False
 
     def _check_error(self, result):
         """Check if Dart returned an error and raise if so."""
@@ -61,6 +73,7 @@ class FletStt(ft.Service):
         result = await self._invoke_method(method_name="initialize")
         checked = self._check_error(result)
         if checked == "true":
+            self._initialized = True
             return True
         if result is None:
             return False
@@ -77,7 +90,7 @@ class FletStt(ft.Service):
         listen_for_seconds: int = 0,
         pause_for_seconds: int = 0,
         partial_results: bool = True,
-        on_device: bool = True,
+        on_device: bool = False,
         cancel_on_error: bool = False,
         sample_rate: int = 0,
         listen_mode: str = "confirmation",
@@ -91,8 +104,8 @@ class FletStt(ft.Service):
             pause_for_seconds: Auto-stop after this many seconds of silence. 0 = platform default.
             partial_results: If True, on_result fires for partial (non-final) results
                 during recognition, not just the final result.
-            on_device: Prefer on-device recognition when available. Falls back to
-                cloud if on-device model isn't installed for the locale.
+            on_device: Use on-device recognition. Default is False (cloud) because
+                on-device models may not be installed and fail silently with no results.
             cancel_on_error: If True, cancel recognition on error instead of continuing.
             sample_rate: Audio sample rate in Hz. 0 = platform default.
             listen_mode: Recognition mode. One of:
@@ -103,6 +116,8 @@ class FletStt(ft.Service):
         Raises:
             SttError: If listening fails to start.
         """
+        if not self._initialized:
+            raise SttError("call initialize() before listen()")
         result = await self._invoke_method(
             method_name="listen",
             arguments={
@@ -129,6 +144,8 @@ class FletStt(ft.Service):
         Raises:
             SttError: If the stop operation fails.
         """
+        if not self._initialized:
+            raise SttError("call initialize() before stop()")
         result = await self._invoke_method(method_name="stop")
         self._check_error(result)
         if result is not None and result != "ok":
@@ -143,6 +160,8 @@ class FletStt(ft.Service):
         Raises:
             SttError: If the cancel operation fails.
         """
+        if not self._initialized:
+            raise SttError("call initialize() before cancel()")
         result = await self._invoke_method(method_name="cancel")
         self._check_error(result)
         if result is not None and result != "ok":

@@ -109,7 +109,7 @@ class SttService extends FletService {
           final listenForSeconds = a["listen_for_seconds"] as int? ?? 0;
           final pauseForSeconds = a["pause_for_seconds"] as int? ?? 0;
           final partialResults = a["partial_results"] as bool? ?? true;
-          final onDevice = a["on_device"] as bool? ?? true;
+          final onDevice = a["on_device"] as bool? ?? false;
           final cancelOnError = a["cancel_on_error"] as bool? ?? false;
           final sampleRate = a["sample_rate"] as int? ?? 0;
           final listenMode = _parseListenMode(
