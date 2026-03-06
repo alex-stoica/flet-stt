@@ -79,7 +79,7 @@ def main(page: ft.Page):
 ft.run(main)
 ```
 
-Just instantiate `FletStt`. Do not add it to `page.overlay` or `page.controls` - it's a service, not a visual control, and it registers itself automatically.
+> **Important**: `FletStt` is a service, not a visual control. Just instantiate it - do not add it to `page.overlay`, `page.controls`, or `page.services`. It registers itself automatically. Adding it to `page.overlay` causes a red error screen on Android.
 
 See the [`examples/`](examples/) folder for more: [`basic.py`](examples/basic.py), [`simple.py`](examples/simple.py), [`continuous.py`](examples/continuous.py), [`locale_picker.py`](examples/locale_picker.py), [`diagnostic.py`](examples/diagnostic.py).
 
@@ -95,7 +95,7 @@ The service. Instantiate once. All callbacks receive an event where `e.data` is 
 |---|---|---|
 | `on_result` | `{"text": "hello", "final": true, "confidence": 0.95, "alternates": [...]}` | Recognition result. `final=false` for partial results. |
 | `on_sound_level` | `{"level": -6.5}` | Microphone dB level during listening. |
-| `on_error` | `{"error": "error_speech_timeout", "permanent": false}` | Recognition error. Permanent errors require re-initialization. |
+| `on_error` | `{"error": "error_speech_timeout", "permanent": false}` | Recognition error. Permanent errors require re-initialization. Possible errors include platform errors like `error_speech_timeout` and `cloud_recognition_timeout` (fired when `on_device=False` and no cloud result arrives within 5 seconds). |
 | `on_status` | `{"status": "listening"}` | Status change: `"listening"`, `"notListening"`, `"done"`. |
 
 The `alternates` field in `on_result` is a list of `{"text": "...", "confidence": 0.0}` objects. The first entry matches the main `text` field. Additional entries are alternative transcriptions when the engine provides them (depends on platform/locale).
@@ -112,7 +112,7 @@ Initialize the speech recognizer and check availability. Must be called before `
 | `listen_for_seconds` | `int` | `0` | Max listen duration. 0 = platform default (~60s on Android). |
 | `pause_for_seconds` | `int` | `0` | Auto-stop after this many seconds of silence. 0 = platform default. |
 | `partial_results` | `bool` | `True` | Fire `on_result` for partial (non-final) results during recognition. |
-| `on_device` | `bool` | `True` | Prefer on-device recognition when available. |
+| `on_device` | `bool` | `True` | Prefer on-device recognition when available. When `False`, a 5-second timeout detects missing cloud support and fires a `cloud_recognition_timeout` error. |
 | `cancel_on_error` | `bool` | `False` | Cancel recognition on error instead of continuing. |
 | `sample_rate` | `int` | `0` | Audio sample rate in Hz. 0 = platform default. 16000 is recommended for speech. |
 | `listen_mode` | `str` | `"confirmation"` | One of `"confirmation"`, `"search"`, `"dictation"`. |
@@ -140,6 +140,24 @@ Check whether the speech recognizer is currently listening.
 ### `await has_permission() -> bool`
 
 Check whether the app has microphone permission.
+
+## Troubleshooting
+
+**Red screen on Android**: you added `FletStt` to `page.overlay`, `page.controls`, or `page.services`. Don't - just instantiate it and it registers itself. Remove any `page.overlay.append(stt)` or similar lines.
+
+**`initialize()` raises `SttError` "permission denied"**: the user denied the microphone permission. On Android, go to Settings > Apps > your app > Permissions and grant microphone access, then try again.
+
+**`initialize()` returns `False`**: speech recognition is not available on this device. This happens on desktop (no native plugin), on Android devices without Google Play Services, or when the speech recognition engine is missing.
+
+**Methods do nothing / no events fire**: make sure `initialize()` was called and returned `True` before calling `listen()`. Also verify event handlers (`on_result`, `on_error`, etc.) are assigned before calling `listen()`.
+
+**`on_device=False` produces no results**: cloud recognition requires an internet connection. If no result arrives within 5 seconds, a `cloud_recognition_timeout` error fires via `on_error`. Check connectivity and try `on_device=True` instead.
+
+**Enable debug logging** to see warnings from the extension:
+```python
+import logging
+logging.basicConfig(level=logging.DEBUG)
+```
 
 ## Building the APK
 

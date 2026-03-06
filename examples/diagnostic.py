@@ -65,6 +65,12 @@ def main(page: ft.Page):
         page.update()
         await stt.listen(partial_results=True, listen_mode="dictation")
 
+    async def start_listening_cloud(e):
+        result_text.value = ""
+        level_bar.value = 0
+        page.update()
+        await stt.listen(on_device=False, partial_results=True, listen_mode="dictation")
+
     async def start_listening_ro(e):
         result_text.value = ""
         level_bar.value = 0
@@ -107,13 +113,18 @@ def main(page: ft.Page):
                 hint("starts recognition in ro_RO locale.\n"
                      "requires Romanian language pack installed."),
                 ft.Divider(height=1),
-                ft.Button(content="4. Stop (get final result)", on_click=stop_listening),
+                ft.Button(content="4. Listen (cloud)", on_click=start_listening_cloud),
+                hint("starts recognition with on_device=False.\n"
+                     "fires cloud_recognition_timeout error after 5s\n"
+                     "if cloud is unavailable."),
+                ft.Divider(height=1),
+                ft.Button(content="5. Stop (get final result)", on_click=stop_listening),
                 hint("stops listening and triggers the final result."),
                 ft.Divider(height=1),
-                ft.Button(content="5. Cancel (discard)", on_click=cancel_listening),
+                ft.Button(content="6. Cancel (discard)", on_click=cancel_listening),
                 hint("cancels listening without returning a result."),
                 ft.Divider(height=1),
-                ft.Button(content="6. List locales", on_click=show_locales),
+                ft.Button(content="7. List locales", on_click=show_locales),
                 hint("shows available speech recognition languages.\n"
                      "first 20 shown in log."),
             ],

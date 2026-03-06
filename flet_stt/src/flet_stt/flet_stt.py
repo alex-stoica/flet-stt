@@ -1,8 +1,11 @@
 import json
+import logging
 from typing import Optional
 
 import flet as ft
 from flet.controls.control_event import ControlEventHandler
+
+logger = logging.getLogger("flet_stt")
 
 
 class SttError(Exception):
@@ -39,6 +42,8 @@ class FletStt(ft.Service):
         """Check if Dart returned an error and raise if so."""
         if isinstance(result, str) and result.startswith("error:"):
             raise SttError(result[6:])
+        if result is None:
+            logger.warning("service returned None (is the extension registered?)")
         return result
 
     async def initialize(self) -> bool:
@@ -54,7 +59,16 @@ class FletStt(ft.Service):
             SttError: If initialization fails on the native side.
         """
         result = await self._invoke_method(method_name="initialize")
-        return self._check_error(result) == "true"
+        checked = self._check_error(result)
+        if checked == "true":
+            return True
+        if result is None:
+            return False
+        perm = await self.has_permission()
+        if not perm:
+            raise SttError("microphone permission denied - grant RECORD_AUDIO permission and try again")
+        logger.info("speech recognition unavailable on this device")
+        return False
 
     async def listen(
         self,
@@ -103,6 +117,8 @@ class FletStt(ft.Service):
             },
         )
         self._check_error(result)
+        if result is not None and result != "ok":
+            logger.debug("listen() returned unexpected: %s", result)
 
     async def stop(self) -> None:
         """Stop listening and trigger the final recognition result.
@@ -115,6 +131,8 @@ class FletStt(ft.Service):
         """
         result = await self._invoke_method(method_name="stop")
         self._check_error(result)
+        if result is not None and result != "ok":
+            logger.debug("stop() returned unexpected: %s", result)
 
     async def cancel(self) -> None:
         """Cancel listening without triggering a final result.
@@ -127,6 +145,8 @@ class FletStt(ft.Service):
         """
         result = await self._invoke_method(method_name="cancel")
         self._check_error(result)
+        if result is not None and result != "ok":
+            logger.debug("cancel() returned unexpected: %s", result)
 
     async def system_locale(self) -> dict:
         """Get the system's default speech recognition locale.

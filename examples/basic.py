@@ -5,7 +5,7 @@ Tap the mic button, speak, see the result. No extra controls.
 
 import json
 import flet as ft
-from flet_stt import FletStt
+from flet_stt import FletStt, SttError
 
 
 def main(page: ft.Page):
@@ -71,7 +71,20 @@ def main(page: ft.Page):
             mic_btn.icon = ft.Icons.MIC_OFF
             mic_btn.bgcolor = ft.Colors.RED
             page.update()
-            await stt.initialize()
+            try:
+                available = await stt.initialize()
+            except SttError as exc:
+                result.value = str(exc)
+                result.color = ft.Colors.RED
+                reset_mic()
+                page.update()
+                return
+            if not available:
+                result.value = "Speech recognition not available on this device"
+                result.color = ft.Colors.GREY
+                reset_mic()
+                page.update()
+                return
             await stt.listen(listen_mode="dictation", on_device=False)
             listening = True
         page.update()

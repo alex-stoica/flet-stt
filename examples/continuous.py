@@ -41,9 +41,11 @@ def main(page: ft.Page):
             page.run_task(_restart)
 
     def on_error(e):
+        nonlocal listening
         data = json.loads(e.data)
-        # Don't restart on permanent errors
-        if data["permanent"]:
+        # Stop auto-restart on permanent errors or cloud timeout
+        if data["permanent"] or data["error"] == "cloud_recognition_timeout":
+            listening = False
             status_text.value = f"error: {data['error']}"
             page.update()
 

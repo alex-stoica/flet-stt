@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flet/flet.dart';
@@ -10,6 +11,8 @@ class SttService extends FletService {
 
   final SpeechToText _speech = SpeechToText();
   bool _initialized = false;
+  static const int _cloudTimeoutSeconds = 15;
+  Timer? _cloudTimer;
 
   @override
   void init() {
@@ -20,10 +23,25 @@ class SttService extends FletService {
   @override
   void dispose() {
     control.removeInvokeMethodListener(_onMethod);
+    _cancelCloudTimer();
     if (_initialized) {
       _speech.cancel();
     }
     super.dispose();
+  }
+
+  void _cancelCloudTimer() {
+    _cloudTimer?.cancel();
+    _cloudTimer = null;
+  }
+
+  void _onCloudTimeout() {
+    _cloudTimer = null;
+    control.triggerEvent("error", jsonEncode({
+      "error": "cloud_recognition_timeout",
+      "permanent": false,
+    }));
+    _speech.cancel();
   }
 
   void _onError(SpeechRecognitionError error) {
@@ -40,6 +58,7 @@ class SttService extends FletService {
   }
 
   void _onResult(SpeechRecognitionResult result) {
+    _cancelCloudTimer();
     control.triggerEvent("result", jsonEncode({
       "text": result.recognizedWords,
       "final": result.finalResult,
@@ -112,13 +131,22 @@ class SttService extends FletService {
             sampleRate: sampleRate > 0 ? sampleRate : null,
             listenMode: listenMode,
           );
+          _cancelCloudTimer();
+          if (!onDevice) {
+            _cloudTimer = Timer(
+              Duration(seconds: _cloudTimeoutSeconds),
+              _onCloudTimeout,
+            );
+          }
           return "ok";
 
         case "stop":
+          _cancelCloudTimer();
           await _speech.stop();
           return "ok";
 
         case "cancel":
+          _cancelCloudTimer();
           await _speech.cancel();
           return "ok";
 
