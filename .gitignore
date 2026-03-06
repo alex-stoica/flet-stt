@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[oc]
+*.egg-info
+dist/
+build/
+
+# Virtual environments
+.venv
+
+# Lockfile
+poetry.lock
+
+# Secrets
+.env
+
+# IDE / tool config
+.claude/
+
+# Local dev notes
+insights/
