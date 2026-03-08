@@ -1,0 +1,40 @@
+name: version guard
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: check version has matching release
+        run: |
+          VERSION=$(grep -m1 '^version' flet_stt/pyproject.toml | sed 's/.*"\(.*\)".*/\1/')
+          echo "current version: $VERSION"
+
+          # get version from parent commit
+          PREV_VERSION=$(git show HEAD~1:flet_stt/pyproject.toml 2>/dev/null | grep -m1 '^version' | sed 's/.*"\(.*\)".*/\1/' || echo "")
+          echo "previous version: $PREV_VERSION"
+
+          if [ "$VERSION" = "$PREV_VERSION" ]; then
+            echo "version unchanged, skipping check"
+            exit 0
+          fi
+
+          echo "version changed: $PREV_VERSION -> $VERSION"
+
+          # check if a release tag exists for this version
+          if git tag -l "v$VERSION" | grep -q .; then
+            echo "release tag v$VERSION exists"
+            exit 0
+          fi
+
+          echo "::error::version bumped to $VERSION but no release v$VERSION exists. Create a GitHub release first."
+          exit 1
