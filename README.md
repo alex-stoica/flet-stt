@@ -34,17 +34,16 @@ All three are needed. Missing any one causes silent failures or build errors.
 ## Quick start
 
 ```python
-import json
 import flet as ft
-from flet_stt import FletStt
+from flet_stt import FletStt, SttResult
 
 def main(page: ft.Page):
     stt = FletStt()  # do NOT add to page.overlay or page.controls
 
     def on_result(e):
-        data = json.loads(e.data)
-        if data["final"]:
-            print(f"Recognized: {data['text']}")
+        r = SttResult(e)
+        if r.final:
+            print(f"Recognized: {r.text} ({r.confidence:.0%})")
 
     stt.on_result = on_result
 
@@ -101,6 +100,15 @@ Instantiate once. Assign event handlers before calling `listen()`.
 | `on_error` | `{"error": "...", "permanent": false}` | Error. Includes `cloud_recognition_timeout` when cloud returns nothing. |
 | `on_status` | `{"status": "listening"}` | Status: `"listening"`, `"notListening"`, `"done"`. |
 | `on_sound_level` | `{"level": -6.5}` | Mic dB level during listening. |
+
+Each event has a typed wrapper so you don't need to parse JSON manually:
+
+| Wrapper | Fields | Example |
+|---|---|---|
+| `SttResult(e)` | `.text`, `.final`, `.confidence`, `.alternates` | `r = SttResult(e); print(r.text)` |
+| `SttErrorData(e)` | `.error`, `.permanent` | `err = SttErrorData(e); print(err.error)` |
+| `SttStatus(e)` | `.status`, `.listening`, `.done` | `s = SttStatus(e); if s.listening: ...` |
+| `SttSoundLevel(e)` | `.level` | `s = SttSoundLevel(e); print(s.level)` |
 
 ### Methods
 
