@@ -7,7 +7,7 @@ state, system locale, and sound level.
 
 import json
 import flet as ft
-from flet_stt import FletStt
+from flet_stt import FletStt, SttError
 
 
 def main(page: ft.Page):
@@ -171,7 +171,15 @@ def main(page: ft.Page):
             reset_mic()
         else:
             if not await stt.has_permission():
-                await stt.initialize()
+                try:
+                    await stt.initialize()
+                except SttError as exc:
+                    result.value = str(exc)
+                    result.color = ft.Colors.RED
+                    permission_text.value = "Permission: denied"
+                    permission_text.color = ft.Colors.RED
+                    page.update()
+                    return
                 if not await stt.has_permission():
                     result.value = "Microphone permission denied — check app settings"
                     result.color = ft.Colors.RED
@@ -200,7 +208,13 @@ def main(page: ft.Page):
         page.update()
 
     async def init_stt(e=None):
-        available = await stt.initialize()
+        try:
+            available = await stt.initialize()
+        except SttError as exc:
+            result.value = str(exc)
+            result.color = ft.Colors.RED
+            page.update()
+            return
         if not available:
             result.value = "Speech recognition not available on this device"
             result.color = ft.Colors.RED

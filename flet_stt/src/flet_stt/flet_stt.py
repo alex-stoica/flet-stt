@@ -288,6 +288,8 @@ class FletStt(ft.Service):
         """
         result = await self._invoke_method(method_name="system_locale")
         self._check_error(result)
+        if result is None:
+            raise SttError("extension not registered - system_locale unavailable")
         return json.loads(result)
 
     async def is_listening(self) -> bool:
@@ -322,4 +324,6 @@ class FletStt(ft.Service):
         """
         result = await self._invoke_method(method_name="locales")
         self._check_error(result)
+        if result is None:
+            raise SttError("extension not registered - locales unavailable")
         return json.loads(result)

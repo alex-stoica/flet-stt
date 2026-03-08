@@ -113,7 +113,7 @@ def main(page: ft.Page):
                 ft.Divider(height=1),
                 ft.Button(content="4. Listen (cloud)", on_click=start_listening_cloud),
                 hint("starts recognition with on_device=False.\n"
-                     "fires cloud_recognition_timeout error after 5s\n"
+                     "fires cloud_recognition_timeout error after 15s\n"
                      "if cloud is unavailable."),
                 ft.Divider(height=1),
                 ft.Button(content="5. Stop (get final result)", on_click=stop_listening),

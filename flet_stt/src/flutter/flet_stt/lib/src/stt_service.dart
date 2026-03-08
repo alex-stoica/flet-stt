@@ -45,6 +45,7 @@ class SttService extends FletService {
   }
 
   void _onError(SpeechRecognitionError error) {
+    _cancelCloudTimer();
     control.triggerEvent("error", jsonEncode({
       "error": error.errorMsg,
       "permanent": error.permanent,

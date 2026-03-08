@@ -144,10 +144,15 @@ def step_inject_dart_extension():
     pubspec = BUILD_FLUTTER / "pubspec.yaml"
     pubspec_text = pubspec.read_text(encoding="utf-8")
     if "path: packages/flet_stt" not in pubspec_text:
-        pubspec_text = pubspec_text.replace(
-            "  serious_python: 0.9.11",
-            "  serious_python: 0.9.11\n  flet_stt:\n    path: packages/flet_stt",
+        pubspec_text, count = re.subn(
+            r"(  serious_python:\s+\S+)",
+            r"\1\n  flet_stt:\n    path: packages/flet_stt",
+            pubspec_text,
+            count=1,
         )
+        if count == 0:
+            print("  ERROR: could not find serious_python dependency in pubspec.yaml")
+            sys.exit(1)
         pubspec.write_text(pubspec_text, encoding="utf-8")
         print("  added flet_stt dependency to pubspec.yaml")
         run([str(FLUTTER_BIN), "pub", "get"], cwd=str(BUILD_FLUTTER))
@@ -156,14 +161,24 @@ def step_inject_dart_extension():
     main_dart = BUILD_FLUTTER / "lib" / "main.dart"
     main_text = main_dart.read_text(encoding="utf-8")
     if "package:flet_stt" not in main_text:
-        main_text = main_text.replace(
-            "import \"python.dart\";",
-            "import \"python.dart\";\nimport 'package:flet_stt/flet_stt.dart' as flet_stt;",
+        main_text, count = re.subn(
+            r'(import\s+"python\.dart";)',
+            r"\1\nimport 'package:flet_stt/flet_stt.dart' as flet_stt;",
+            main_text,
+            count=1,
         )
-        main_text = main_text.replace(
-            "List<FletExtension> extensions = [\n\n];",
-            "List<FletExtension> extensions = [\n  flet_stt.Extension(),\n];",
+        if count == 0:
+            print('  ERROR: could not find \'import "python.dart";\' in main.dart')
+            sys.exit(1)
+        main_text, count = re.subn(
+            r'(List<FletExtension>\s+extensions\s*=\s*\[)\s*\]',
+            r'\1\n  flet_stt.Extension(),\n]',
+            main_text,
+            count=1,
         )
+        if count == 0:
+            print("  ERROR: could not find extensions list in main.dart")
+            sys.exit(1)
         main_dart.write_text(main_text, encoding="utf-8")
         print("  registered flet_stt extension in main.dart")
 
