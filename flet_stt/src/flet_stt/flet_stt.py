@@ -1,5 +1,6 @@
 import json
 import logging
+from dataclasses import dataclass, field
 from typing import Optional
 
 import flet as ft
@@ -12,6 +13,90 @@ class SttError(Exception):
     """Raised when a speech-to-text operation fails on the native side."""
 
     pass
+
+
+@dataclass
+class SttResult:
+    """Parsed speech recognition result.
+
+    Usage:
+        def on_result(e):
+            r = SttResult(e)
+            print(r.text, r.final, r.confidence)
+    """
+
+    text: str
+    final: bool
+    confidence: float
+    alternates: list[dict] = field(default_factory=list)
+
+    def __init__(self, event):
+        data = json.loads(event.data)
+        self.text = data["text"]
+        self.final = data["final"]
+        self.confidence = data["confidence"]
+        self.alternates = data.get("alternates", [])
+
+
+@dataclass
+class SttErrorData:
+    """Parsed speech recognition error.
+
+    Usage:
+        def on_error(e):
+            err = SttErrorData(e)
+            print(err.error, err.permanent)
+    """
+
+    error: str
+    permanent: bool
+
+    def __init__(self, event):
+        data = json.loads(event.data)
+        self.error = data["error"]
+        self.permanent = data["permanent"]
+
+
+@dataclass
+class SttStatus:
+    """Parsed speech recognition status change.
+
+    Usage:
+        def on_status(e):
+            s = SttStatus(e)
+            print(s.status)  # "listening", "notListening", or "done"
+    """
+
+    status: str
+
+    def __init__(self, event):
+        data = json.loads(event.data)
+        self.status = data["status"]
+
+    @property
+    def listening(self) -> bool:
+        return self.status == "listening"
+
+    @property
+    def done(self) -> bool:
+        return self.status == "done"
+
+
+@dataclass
+class SttSoundLevel:
+    """Parsed microphone sound level.
+
+    Usage:
+        def on_sound_level(e):
+            s = SttSoundLevel(e)
+            print(s.level)  # raw dB, e.g. -6.5
+    """
+
+    level: float
+
+    def __init__(self, event):
+        data = json.loads(event.data)
+        self.level = data["level"]
 
 
 @ft.control("flet_stt")

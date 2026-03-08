@@ -4,9 +4,8 @@ Lists available speech recognition languages, lets the user pick one,
 then listens in that language.
 """
 
-import json
 import flet as ft
-from flet_stt import FletStt
+from flet_stt import FletStt, SttResult
 
 
 def main(page: ft.Page):
@@ -20,9 +19,9 @@ def main(page: ft.Page):
     )
 
     def on_result(e):
-        data = json.loads(e.data)
-        prefix = "[FINAL]" if data["final"] else ""
-        result.value = f"{prefix} {data['text']}"
+        r = SttResult(e)
+        prefix = "[FINAL]" if r.final else ""
+        result.value = f"{prefix} {r.text}"
         page.update()
 
     stt.on_result = on_result

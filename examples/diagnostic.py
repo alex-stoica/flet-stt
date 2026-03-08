@@ -3,9 +3,8 @@
 Each button tests a single feature. Status text shows results and errors.
 """
 
-import json
 import flet as ft
-from flet_stt import FletStt
+from flet_stt import FletStt, SttResult, SttErrorData, SttStatus, SttSoundLevel
 
 
 def main(page: ft.Page):
@@ -25,30 +24,29 @@ def main(page: ft.Page):
         page.update()
 
     def on_result(e):
-        data = json.loads(e.data)
-        prefix = "[FINAL]" if data["final"] else "[partial]"
-        confidence = f" ({data['confidence']:.0%})" if data["confidence"] > 0 else ""
-        result_text.value = f"{prefix} {data['text']}{confidence}"
+        r = SttResult(e)
+        prefix = "[FINAL]" if r.final else "[partial]"
+        confidence = f" ({r.confidence:.0%})" if r.confidence > 0 else ""
+        result_text.value = f"{prefix} {r.text}{confidence}"
         page.update()
 
     def on_sound_level(e):
-        data = json.loads(e.data)
+        s = SttSoundLevel(e)
         # Normalize dB level to 0-1 range (typically -2 to -40 dB)
-        normalized = max(0, min(1, (data["level"] + 40) / 38))
+        normalized = max(0, min(1, (s.level + 40) / 38))
         level_bar.value = normalized
         page.update()
 
     def on_error(e):
-        data = json.loads(e.data)
-        permanent = " (PERMANENT)" if data["permanent"] else ""
-        set_log(f"ERROR: {data['error']}{permanent}")
+        err = SttErrorData(e)
+        permanent = " (PERMANENT)" if err.permanent else ""
+        set_log(f"ERROR: {err.error}{permanent}")
 
     def on_status(e):
         nonlocal is_listening
-        data = json.loads(e.data)
-        status = data["status"]
-        is_listening = status == "listening"
-        set_log(f"status: {status}")
+        s = SttStatus(e)
+        is_listening = s.listening
+        set_log(f"status: {s.status}")
 
     stt.on_result = on_result
     stt.on_sound_level = on_sound_level
@@ -103,7 +101,7 @@ def main(page: ft.Page):
                 level_bar,
                 ft.Divider(),
                 ft.Button(content="1. Initialize", on_click=init_stt),
-                hint("must be called first — checks availability + requests mic permission"),
+                hint("must be called first - checks availability + requests mic permission"),
                 ft.Divider(height=1),
                 ft.Button(content="2. Listen (system language)", on_click=start_listening),
                 hint("starts recognition in system default locale.\n"
