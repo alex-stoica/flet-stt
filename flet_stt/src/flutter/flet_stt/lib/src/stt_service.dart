@@ -115,6 +115,9 @@ class SttService extends FletService {
           final listenMode = _parseListenMode(
               a["listen_mode"] as String? ?? "confirmation");
 
+          final autoPunctuation = a["auto_punctuation"] as bool? ?? false;
+          final enableHapticFeedback = a["enable_haptic_feedback"] as bool? ?? false;
+
           await _speech.listen(
             onResult: _onResult,
             onSoundLevelChange: _onSoundLevel,
@@ -125,11 +128,15 @@ class SttService extends FletService {
             pauseFor: pauseForSeconds > 0
                 ? Duration(seconds: pauseForSeconds)
                 : null,
-            partialResults: partialResults,
-            onDevice: onDevice,
-            cancelOnError: cancelOnError,
-            sampleRate: sampleRate > 0 ? sampleRate : null,
-            listenMode: listenMode,
+            listenOptions: SpeechListenOptions(
+              partialResults: partialResults,
+              onDevice: onDevice,
+              cancelOnError: cancelOnError,
+              sampleRate: sampleRate > 0 ? sampleRate : 0,
+              listenMode: listenMode,
+              autoPunctuation: autoPunctuation,
+              enableHapticFeedback: enableHapticFeedback,
+            ),
           );
           _cancelCloudTimer();
           if (!onDevice) {
@@ -148,6 +155,18 @@ class SttService extends FletService {
         case "cancel":
           _cancelCloudTimer();
           await _speech.cancel();
+          return "ok";
+
+        case "change_pause_for":
+          if (!_initialized) {
+            return "error:not initialized — call initialize() first";
+          }
+          final seconds = args as int;
+          try {
+            _speech.changePauseFor(Duration(seconds: seconds));
+          } on ListenNotStartedException {
+            return "error:not listening — call listen() before change_pause_for()";
+          }
           return "ok";
 
         case "locales":

@@ -179,6 +179,8 @@ class FletStt(ft.Service):
         cancel_on_error: bool = False,
         sample_rate: int = 0,
         listen_mode: str = "confirmation",
+        auto_punctuation: bool = False,
+        enable_haptic_feedback: bool = False,
     ) -> None:
         """Start listening for speech.
 
@@ -197,6 +199,8 @@ class FletStt(ft.Service):
                 - "confirmation": short phrases, yes/no responses (default)
                 - "search": search query input
                 - "dictation": longer free-form text
+            auto_punctuation: Automatically insert punctuation (iOS only, no-op on Android).
+            enable_haptic_feedback: Haptic feedback while listening (iOS only, no-op on Android).
 
         Raises:
             SttError: If listening fails to start.
@@ -214,6 +218,8 @@ class FletStt(ft.Service):
                 "cancel_on_error": cancel_on_error,
                 "sample_rate": sample_rate,
                 "listen_mode": listen_mode,
+                "auto_punctuation": auto_punctuation,
+                "enable_haptic_feedback": enable_haptic_feedback,
             },
         )
         self._check_error(result)
@@ -251,6 +257,25 @@ class FletStt(ft.Service):
         self._check_error(result)
         if result is not None and result != "ok":
             logger.debug("cancel() returned unexpected: %s", result)
+
+    async def change_pause_for(self, seconds: int) -> None:
+        """Change the silence timeout while listening.
+
+        Restarts the pause timer with the new duration. Useful for allowing
+        a long initial pause then shortening it once the user starts speaking.
+
+        Must be called while actively listening (after listen(), before stop/cancel).
+
+        Args:
+            seconds: New silence timeout in seconds.
+
+        Raises:
+            SttError: If not initialized or not currently listening.
+        """
+        if not self._initialized:
+            raise SttError("call initialize() before change_pause_for()")
+        result = await self._invoke_method(method_name="change_pause_for", arguments=seconds)
+        self._check_error(result)
 
     async def system_locale(self) -> dict:
         """Get the system's default speech recognition locale.
