@@ -126,6 +126,7 @@ Each event has a typed wrapper so you don't need to parse JSON manually:
 | `cancel_on_error` | `False` | Cancel on error instead of continuing. |
 | `sample_rate` | `0` | Hz. 0 = platform default. |
 | `listen_mode` | `"confirmation"` | `"confirmation"`, `"search"`, or `"dictation"`. |
+| `cloud_timeout_seconds` | `15` | Seconds before `cloud_recognition_timeout` error. 0 = no timeout. Only when `on_device=False`. |
 
 **`await stop()`** - stop and get final result.
 

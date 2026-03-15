@@ -11,7 +11,6 @@ class SttService extends FletService {
 
   final SpeechToText _speech = SpeechToText();
   bool _initialized = false;
-  static const int _cloudTimeoutSeconds = 15;
   Timer? _cloudTimer;
 
   @override
@@ -118,6 +117,7 @@ class SttService extends FletService {
 
           final autoPunctuation = a["auto_punctuation"] as bool? ?? false;
           final enableHapticFeedback = a["enable_haptic_feedback"] as bool? ?? false;
+          final cloudTimeoutSeconds = a["cloud_timeout_seconds"] as int? ?? 15;
 
           await _speech.listen(
             onResult: _onResult,
@@ -140,9 +140,9 @@ class SttService extends FletService {
             ),
           );
           _cancelCloudTimer();
-          if (!onDevice) {
+          if (!onDevice && cloudTimeoutSeconds > 0) {
             _cloudTimer = Timer(
-              Duration(seconds: _cloudTimeoutSeconds),
+              Duration(seconds: cloudTimeoutSeconds),
               _onCloudTimeout,
             );
           }

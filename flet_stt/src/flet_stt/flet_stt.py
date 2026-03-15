@@ -181,6 +181,7 @@ class FletStt(ft.Service):
         listen_mode: str = "confirmation",
         auto_punctuation: bool = False,
         enable_haptic_feedback: bool = False,
+        cloud_timeout_seconds: int = 15,
     ) -> None:
         """Start listening for speech.
 
@@ -201,6 +202,9 @@ class FletStt(ft.Service):
                 - "dictation": longer free-form text
             auto_punctuation: Automatically insert punctuation (iOS only, no-op on Android).
             enable_haptic_feedback: Haptic feedback while listening (iOS only, no-op on Android).
+            cloud_timeout_seconds: Seconds to wait for cloud recognition before firing a
+                cloud_recognition_timeout error. 0 = no timeout. Only applies when
+                on_device=False. Default is 15.
 
         Raises:
             SttError: If listening fails to start.
@@ -220,6 +224,7 @@ class FletStt(ft.Service):
                 "listen_mode": listen_mode,
                 "auto_punctuation": auto_punctuation,
                 "enable_haptic_feedback": enable_haptic_feedback,
+                "cloud_timeout_seconds": cloud_timeout_seconds,
             },
         )
         self._check_error(result)
