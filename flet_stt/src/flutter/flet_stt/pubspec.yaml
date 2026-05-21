@@ -1,6 +1,6 @@
 name: flet_stt
 description: Speech-to-text for Flet
-version: 0.1.5
+version: 0.1.6
 publish_to: none
 
 environment:
@@ -11,7 +11,7 @@ dependencies:
   flet: ">=0.82.0"
   flutter:
     sdk: flutter
-  speech_to_text: ^7.3.0
+  speech_to_text: ^7.4.0
 
 dev_dependencies:
   flutter_test:

@@ -18,9 +18,12 @@ exclude = ["flet_stt"]
 package-mode = false
 
 [tool.poetry.dependencies]
-python = ">=3.10"
+python = ">=3.11"
 flet = ">=0.82.0"
 flet-stt = {path = "flet_stt", develop = true}
+
+[tool.flet.dev_packages]
+flet-stt = "flet_stt"
 
 [build-system]
 requires = ["poetry-core"]

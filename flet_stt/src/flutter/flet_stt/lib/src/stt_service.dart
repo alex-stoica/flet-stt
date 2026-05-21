@@ -102,7 +102,7 @@ class SttService extends FletService {
 
         case "listen":
           if (!_initialized) {
-            return "error:not initialized — call initialize() first";
+            return "error:not initialized - call initialize() first";
           }
           final a = Map<String, dynamic>.from(args as Map);
           final localeId = a["locale_id"] as String? ?? "";
@@ -122,13 +122,6 @@ class SttService extends FletService {
           await _speech.listen(
             onResult: _onResult,
             onSoundLevelChange: _onSoundLevel,
-            localeId: localeId.isNotEmpty ? localeId : null,
-            listenFor: listenForSeconds > 0
-                ? Duration(seconds: listenForSeconds)
-                : null,
-            pauseFor: pauseForSeconds > 0
-                ? Duration(seconds: pauseForSeconds)
-                : null,
             listenOptions: SpeechListenOptions(
               partialResults: partialResults,
               onDevice: onDevice,
@@ -137,6 +130,13 @@ class SttService extends FletService {
               listenMode: listenMode,
               autoPunctuation: autoPunctuation,
               enableHapticFeedback: enableHapticFeedback,
+              localeId: localeId.isNotEmpty ? localeId : null,
+              listenFor: listenForSeconds > 0
+                  ? Duration(seconds: listenForSeconds)
+                  : null,
+              pauseFor: pauseForSeconds > 0
+                  ? Duration(seconds: pauseForSeconds)
+                  : null,
             ),
           );
           _cancelCloudTimer();
@@ -160,19 +160,19 @@ class SttService extends FletService {
 
         case "change_pause_for":
           if (!_initialized) {
-            return "error:not initialized — call initialize() first";
+            return "error:not initialized - call initialize() first";
           }
           final seconds = args as int;
           try {
             _speech.changePauseFor(Duration(seconds: seconds));
           } on ListenNotStartedException {
-            return "error:not listening — call listen() before change_pause_for()";
+            return "error:not listening - call listen() before change_pause_for()";
           }
           return "ok";
 
         case "locales":
           if (!_initialized) {
-            return "error:not initialized — call initialize() first";
+            return "error:not initialized - call initialize() first";
           }
           final locales = await _speech.locales();
           final list = locales.map((l) =>
@@ -182,7 +182,7 @@ class SttService extends FletService {
 
         case "system_locale":
           if (!_initialized) {
-            return "error:not initialized — call initialize() first";
+            return "error:not initialized - call initialize() first";
           }
           final locale = await _speech.systemLocale();
           if (locale == null) {

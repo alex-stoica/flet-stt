@@ -21,11 +21,11 @@ ROOT = Path(__file__).parent
 BUILD_FLUTTER = ROOT / "build" / "flutter"
 APP_ZIP = BUILD_FLUTTER / "app" / "app.zip"
 APP_ZIP_HASH = BUILD_FLUTTER / "app" / "app.zip.hash"
-FLUTTER_BIN = Path(r"C:\Users\alexs\flutter\3.41.4\bin\flutter.bat")
 PACKAGE_SRC = ROOT / "flet_stt" / "src" / "flet_stt"
 PACKAGE_ID = "com.flet.flet_stt_demo"
 
 SITE_PKG_PREFIX = ".venv/Lib/site-packages/flet_stt/"
+FLUTTER_BIN_ENV = "FLUTTER_BIN"
 
 
 def run(cmd, cwd=None, env=None):
@@ -35,6 +35,48 @@ def run(cmd, cwd=None, env=None):
     if result.returncode != 0:
         print(f"FAILED with exit code {result.returncode}")
         sys.exit(1)
+
+
+def flutter_executable_name():
+    return "flutter.bat" if os.name == "nt" else "flutter"
+
+
+def flutter_from_generated_project():
+    """Return the Flutter SDK selected by Flet build, if the generated app has one."""
+    local_properties = BUILD_FLUTTER / "android" / "local.properties"
+    if not local_properties.exists():
+        return None
+
+    for line in local_properties.read_text(encoding="utf-8").splitlines():
+        if not line.startswith("flutter.sdk="):
+            continue
+        flutter_sdk = Path(line.split("=", 1)[1].strip())
+        flutter_bin = flutter_sdk / "bin" / flutter_executable_name()
+        if flutter_bin.exists():
+            return str(flutter_bin)
+        print(f"  WARNING: generated Flutter SDK not found at {flutter_bin}")
+        return None
+    return None
+
+
+def flutter_cmd():
+    """Resolve Flutter without pinning this repo to one local SDK."""
+    if os.environ.get(FLUTTER_BIN_ENV):
+        return [os.environ[FLUTTER_BIN_ENV]]
+
+    generated_flutter = flutter_from_generated_project()
+    if generated_flutter:
+        return [generated_flutter]
+
+    path_flutter = shutil.which("flutter")
+    if path_flutter:
+        return [path_flutter]
+
+    print(
+        "ERROR: Flutter executable not found. Run flet build first, put flutter "
+        f"on PATH, or set {FLUTTER_BIN_ENV}."
+    )
+    sys.exit(1)
 
 
 def step_flet_build():
@@ -140,10 +182,22 @@ def step_inject_dart_extension():
     shutil.copytree(dart_src, dart_dest)
     print(f"  copied Dart extension to {dart_dest}")
 
-    # Patch pubspec.yaml — add flet_stt dependency
+    # Patch pubspec.yaml - add or normalize flet_stt dependency
     pubspec = BUILD_FLUTTER / "pubspec.yaml"
     pubspec_text = pubspec.read_text(encoding="utf-8")
-    if "path: packages/flet_stt" not in pubspec_text:
+
+    extension_dependency = "  flet_stt:\n    path: packages/flet_stt"
+    if re.search(r"(?m)^  flet_stt:\r?\n    path: .*(?:\r?\n)?", pubspec_text):
+        pubspec_text, count = re.subn(
+            r"(?m)^  flet_stt:\r?\n    path: .*(?:\r?\n)?",
+            extension_dependency + "\n",
+            pubspec_text,
+            count=1,
+        )
+        if count:
+            pubspec.write_text(pubspec_text, encoding="utf-8")
+            print("  normalized flet_stt dependency in pubspec.yaml")
+    else:
         pubspec_text, count = re.subn(
             r"(  serious_python:\s+\S+)",
             r"\1\n  flet_stt:\n    path: packages/flet_stt",
@@ -155,9 +209,9 @@ def step_inject_dart_extension():
             sys.exit(1)
         pubspec.write_text(pubspec_text, encoding="utf-8")
         print("  added flet_stt dependency to pubspec.yaml")
-        run([str(FLUTTER_BIN), "pub", "get"], cwd=str(BUILD_FLUTTER))
+    run([*flutter_cmd(), "pub", "get"], cwd=str(BUILD_FLUTTER))
 
-    # Patch main.dart — import and register extension
+    # Patch main.dart - import and register extension
     main_dart = BUILD_FLUTTER / "lib" / "main.dart"
     main_text = main_dart.read_text(encoding="utf-8")
     if "package:flet_stt" not in main_text:
@@ -194,7 +248,7 @@ def step_flutter_build():
         env["SERIOUS_PYTHON_SITE_PACKAGES"] = str(site_packages)
         print(f"  SERIOUS_PYTHON_SITE_PACKAGES={site_packages}")
 
-    run([str(FLUTTER_BIN), "build", "apk", "--release"], cwd=str(BUILD_FLUTTER), env=env)
+    run([*flutter_cmd(), "build", "apk", "--release"], cwd=str(BUILD_FLUTTER), env=env)
 
 
 def step_install():
