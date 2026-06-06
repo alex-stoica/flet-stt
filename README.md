@@ -126,6 +126,8 @@ Each event has a typed wrapper so you don't need to parse JSON manually:
 | `cancel_on_error` | `False` | Cancel on error instead of continuing. |
 | `sample_rate` | `0` | Hz. 0 = platform default. |
 | `listen_mode` | `"confirmation"` | `"confirmation"`, `"search"`, or `"dictation"`. |
+| `auto_punctuation` | `False` | Auto-insert punctuation (iOS only, no-op on Android). |
+| `enable_haptic_feedback` | `False` | Haptic feedback while listening (iOS only, no-op on Android). |
 | `cloud_timeout_seconds` | `15` | Seconds before `cloud_recognition_timeout` error. 0 = no timeout. Only when `on_device=False`. |
 
 **`await stop()`** - stop and get final result.
@@ -142,7 +144,7 @@ Each event has a typed wrapper so you don't need to parse JSON manually:
 
 - **Android**: Google Speech Services. On-device for ~50 languages. Auto-stops after ~5s silence / ~60s total. Requires `RECORD_AUDIO`.
 - **iOS**: Apple SFSpeechRecognizer. On-device since iOS 15 for major languages. Needs `NSSpeechRecognitionUsageDescription` and `NSMicrophoneUsageDescription` in Info.plist.
-- **Desktop**: instantiates without error but recognition won't work (no native plugin).
+- **Desktop/Web**: unsupported. On web, `speech_to_text` 7.4.0 returns empty transcripts (Dart-to-JS binding bug, [flutter#86621](https://github.com/flutter/flutter/issues/86621)), so STT yields no text. Android/iOS work.
 
 ## Building APK
 

@@ -151,10 +151,17 @@ class FletStt(ft.Service):
 
         Returns:
             True if speech recognition is available, False otherwise.
+            Always False on web (recognition is unsupported there).
 
         Raises:
             SttError: If initialization fails on the native side.
         """
+        if self.page.web:
+            logger.warning(
+                "flet-stt: speech recognition is unavailable on web "
+                "(speech_to_text returns empty results, flutter#86621)"
+            )
+            return False
         result = await self._invoke_method(method_name="initialize")
         checked = self._check_error(result)
         if checked == "true":
