@@ -112,7 +112,9 @@ Each event has a typed wrapper so you don't need to parse JSON manually:
 
 ### Methods
 
-**`await initialize() -> bool`** - initialize recognizer, request mic permission. Call before `listen()`.
+**`await initialize(debug_logging=False, final_timeout_seconds=2.0) -> bool`** - initialize recognizer,
+request mic permission. Call before `listen()`. `debug_logging` enables verbose native logs;
+`final_timeout_seconds` caps the wait for a final result after recognition ends.
 
 **`await listen(...)`**
 
@@ -129,6 +131,7 @@ Each event has a typed wrapper so you don't need to parse JSON manually:
 | `auto_punctuation` | `False` | Auto-insert punctuation (iOS only, no-op on Android). |
 | `enable_haptic_feedback` | `False` | Haptic feedback while listening (iOS only, no-op on Android). |
 | `cloud_timeout_seconds` | `15` | Seconds before `cloud_recognition_timeout` error. 0 = no timeout. Only when `on_device=False`. |
+| `continuous` | `False` | Auto-restart natively when the platform ends a session. Stops on `stop()`/`cancel()`, permanent errors, and cloud timeouts. |
 
 **`await stop()`** - stop and get final result.
 
