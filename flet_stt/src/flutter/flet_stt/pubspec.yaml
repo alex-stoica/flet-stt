@@ -1,6 +1,6 @@
 name: flet_stt
 description: Speech-to-text for Flet
-version: 0.1.7
+version: 0.2.0
 publish_to: none
 
 environment:
