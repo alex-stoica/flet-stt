@@ -2,6 +2,8 @@ import json
 import pathlib
 import sys
 import unittest
+from types import SimpleNamespace
+from unittest.mock import PropertyMock, patch
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "flet_stt" / "src"))
@@ -74,6 +76,7 @@ class FletSttMethodTests(unittest.IsolatedAsyncioTestCase):
             auto_punctuation=True,
             enable_haptic_feedback=True,
             cloud_timeout_seconds=0,
+            continuous=True,
         )
 
         self.assertEqual(calls[0]["method_name"], "listen")
@@ -91,6 +94,7 @@ class FletSttMethodTests(unittest.IsolatedAsyncioTestCase):
                 "auto_punctuation": True,
                 "enable_haptic_feedback": True,
                 "cloud_timeout_seconds": 0,
+                "continuous": True,
             },
         )
 
@@ -99,3 +103,25 @@ class FletSttMethodTests(unittest.IsolatedAsyncioTestCase):
 
         with self.assertRaisesRegex(SttError, "initialize"):
             await stt.listen()
+
+    async def test_initialize_passes_options_to_dart(self):
+        stt = FletStt()
+        calls = []
+
+        async def invoke_method(**kwargs):
+            calls.append(kwargs)
+            return "true"
+
+        stt._invoke_method = invoke_method
+
+        with patch.object(FletStt, "page", new_callable=PropertyMock) as page:
+            page.return_value = SimpleNamespace(web=False)
+            available = await stt.initialize(debug_logging=True, final_timeout_seconds=1.5)
+
+        self.assertTrue(available)
+        self.assertTrue(stt._initialized)
+        self.assertEqual(calls[0]["method_name"], "initialize")
+        self.assertEqual(
+            calls[0]["arguments"],
+            {"debug_logging": True, "final_timeout_ms": 1500},
+        )

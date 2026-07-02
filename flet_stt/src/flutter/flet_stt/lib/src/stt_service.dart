@@ -12,6 +12,9 @@ class SttService extends FletService {
   final SpeechToText _speech = SpeechToText();
   bool _initialized = false;
   Timer? _cloudTimer;
+  bool _continuous = false;
+  Map<String, dynamic>? _listenArgs;
+  Timer? _restartTimer;
 
   @override
   void init() {
@@ -22,11 +25,35 @@ class SttService extends FletService {
   @override
   void dispose() {
     control.removeInvokeMethodListener(_onMethod);
+    _stopContinuous();
     _cancelCloudTimer();
     if (_initialized) {
       _speech.cancel();
     }
     super.dispose();
+  }
+
+  void _stopContinuous() {
+    _continuous = false;
+    _listenArgs = null;
+    _restartTimer?.cancel();
+    _restartTimer = null;
+  }
+
+  void _scheduleRestart() {
+    _restartTimer?.cancel();
+    _restartTimer = Timer(const Duration(milliseconds: 150), () async {
+      if (!_continuous || _listenArgs == null) return;
+      try {
+        await _startListening(_listenArgs!);
+      } catch (e) {
+        _stopContinuous();
+        control.triggerEvent("error", jsonEncode({
+          "error": "continuous_restart_failed: $e",
+          "permanent": true,
+        }));
+      }
+    });
   }
 
   void _cancelCloudTimer() {
@@ -36,6 +63,8 @@ class SttService extends FletService {
 
   void _onCloudTimeout() {
     _cloudTimer = null;
+    // Don't auto-restart into another silent timeout (e.g. offline device).
+    _stopContinuous();
     control.triggerEvent("error", jsonEncode({
       "error": "cloud_recognition_timeout",
       "permanent": false,
@@ -45,6 +74,9 @@ class SttService extends FletService {
 
   void _onError(SpeechRecognitionError error) {
     _cancelCloudTimer();
+    if (error.permanent) {
+      _stopContinuous();
+    }
     control.triggerEvent("error", jsonEncode({
       "error": error.errorMsg,
       "permanent": error.permanent,
@@ -55,6 +87,11 @@ class SttService extends FletService {
     control.triggerEvent("status", jsonEncode({
       "status": status,
     }));
+    // The platform ended a session (silence timeout or max duration); in
+    // continuous mode start the next one.
+    if (status == "done" && _continuous && _listenArgs != null) {
+      _scheduleRestart();
+    }
   }
 
   void _onResult(SpeechRecognitionResult result) {
@@ -76,6 +113,50 @@ class SttService extends FletService {
     }));
   }
 
+  Future<void> _startListening(Map<String, dynamic> a) async {
+    final localeId = a["locale_id"] as String? ?? "";
+    final listenForSeconds = a["listen_for_seconds"] as int? ?? 0;
+    final pauseForSeconds = a["pause_for_seconds"] as int? ?? 0;
+    final partialResults = a["partial_results"] as bool? ?? true;
+    final onDevice = a["on_device"] as bool? ?? false;
+    final cancelOnError = a["cancel_on_error"] as bool? ?? false;
+    final sampleRate = a["sample_rate"] as int? ?? 0;
+    final listenMode = _parseListenMode(
+        a["listen_mode"] as String? ?? "confirmation");
+
+    final autoPunctuation = a["auto_punctuation"] as bool? ?? false;
+    final enableHapticFeedback = a["enable_haptic_feedback"] as bool? ?? false;
+    final cloudTimeoutSeconds = a["cloud_timeout_seconds"] as int? ?? 15;
+
+    await _speech.listen(
+      onResult: _onResult,
+      onSoundLevelChange: _onSoundLevel,
+      listenOptions: SpeechListenOptions(
+        partialResults: partialResults,
+        onDevice: onDevice,
+        cancelOnError: cancelOnError,
+        sampleRate: sampleRate > 0 ? sampleRate : 0,
+        listenMode: listenMode,
+        autoPunctuation: autoPunctuation,
+        enableHapticFeedback: enableHapticFeedback,
+        localeId: localeId.isNotEmpty ? localeId : null,
+        listenFor: listenForSeconds > 0
+            ? Duration(seconds: listenForSeconds)
+            : null,
+        pauseFor: pauseForSeconds > 0
+            ? Duration(seconds: pauseForSeconds)
+            : null,
+      ),
+    );
+    _cancelCloudTimer();
+    if (!onDevice && cloudTimeoutSeconds > 0) {
+      _cloudTimer = Timer(
+        Duration(seconds: cloudTimeoutSeconds),
+        _onCloudTimeout,
+      );
+    }
+  }
+
   ListenMode _parseListenMode(String value) {
     switch (value) {
       case "dictation":
@@ -93,9 +174,15 @@ class SttService extends FletService {
     try {
       switch (name) {
         case "initialize":
+          final a = args != null
+              ? Map<String, dynamic>.from(args as Map)
+              : <String, dynamic>{};
           final available = await _speech.initialize(
             onError: _onError,
             onStatus: _onStatus,
+            debugLogging: a["debug_logging"] as bool? ?? false,
+            finalTimeout:
+                Duration(milliseconds: a["final_timeout_ms"] as int? ?? 2000),
           );
           _initialized = available;
           return available.toString();
@@ -105,55 +192,19 @@ class SttService extends FletService {
             return "error:not initialized - call initialize() first";
           }
           final a = Map<String, dynamic>.from(args as Map);
-          final localeId = a["locale_id"] as String? ?? "";
-          final listenForSeconds = a["listen_for_seconds"] as int? ?? 0;
-          final pauseForSeconds = a["pause_for_seconds"] as int? ?? 0;
-          final partialResults = a["partial_results"] as bool? ?? true;
-          final onDevice = a["on_device"] as bool? ?? false;
-          final cancelOnError = a["cancel_on_error"] as bool? ?? false;
-          final sampleRate = a["sample_rate"] as int? ?? 0;
-          final listenMode = _parseListenMode(
-              a["listen_mode"] as String? ?? "confirmation");
-
-          final autoPunctuation = a["auto_punctuation"] as bool? ?? false;
-          final enableHapticFeedback = a["enable_haptic_feedback"] as bool? ?? false;
-          final cloudTimeoutSeconds = a["cloud_timeout_seconds"] as int? ?? 15;
-
-          await _speech.listen(
-            onResult: _onResult,
-            onSoundLevelChange: _onSoundLevel,
-            listenOptions: SpeechListenOptions(
-              partialResults: partialResults,
-              onDevice: onDevice,
-              cancelOnError: cancelOnError,
-              sampleRate: sampleRate > 0 ? sampleRate : 0,
-              listenMode: listenMode,
-              autoPunctuation: autoPunctuation,
-              enableHapticFeedback: enableHapticFeedback,
-              localeId: localeId.isNotEmpty ? localeId : null,
-              listenFor: listenForSeconds > 0
-                  ? Duration(seconds: listenForSeconds)
-                  : null,
-              pauseFor: pauseForSeconds > 0
-                  ? Duration(seconds: pauseForSeconds)
-                  : null,
-            ),
-          );
-          _cancelCloudTimer();
-          if (!onDevice && cloudTimeoutSeconds > 0) {
-            _cloudTimer = Timer(
-              Duration(seconds: cloudTimeoutSeconds),
-              _onCloudTimeout,
-            );
-          }
+          _continuous = a["continuous"] as bool? ?? false;
+          _listenArgs = _continuous ? a : null;
+          await _startListening(a);
           return "ok";
 
         case "stop":
+          _stopContinuous();
           _cancelCloudTimer();
           await _speech.stop();
           return "ok";
 
         case "cancel":
+          _stopContinuous();
           _cancelCloudTimer();
           await _speech.cancel();
           return "ok";

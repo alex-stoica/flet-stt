@@ -143,11 +143,21 @@ class FletStt(ft.Service):
             logger.warning("service returned None (is the extension registered?)")
         return result
 
-    async def initialize(self) -> bool:
+    async def initialize(
+        self,
+        *,
+        debug_logging: bool = False,
+        final_timeout_seconds: float = 2.0,
+    ) -> bool:
         """Initialize the speech recognizer and check availability.
 
         Must be called before listen(). Requests microphone permission
         on first call.
+
+        Args:
+            debug_logging: Enable verbose logging from the native recognizer.
+            final_timeout_seconds: How long to wait for a final result after
+                recognition ends before giving up on it. Platform default is 2.
 
         Returns:
             True if speech recognition is available, False otherwise.
@@ -162,7 +172,13 @@ class FletStt(ft.Service):
                 "(speech_to_text returns empty results, flutter#86621)"
             )
             return False
-        result = await self._invoke_method(method_name="initialize")
+        result = await self._invoke_method(
+            method_name="initialize",
+            arguments={
+                "debug_logging": debug_logging,
+                "final_timeout_ms": int(final_timeout_seconds * 1000),
+            },
+        )
         checked = self._check_error(result)
         if checked == "true":
             self._initialized = True
@@ -189,6 +205,7 @@ class FletStt(ft.Service):
         auto_punctuation: bool = False,
         enable_haptic_feedback: bool = False,
         cloud_timeout_seconds: int = 15,
+        continuous: bool = False,
     ) -> None:
         """Start listening for speech.
 
@@ -212,6 +229,10 @@ class FletStt(ft.Service):
             cloud_timeout_seconds: Seconds to wait for cloud recognition before firing a
                 cloud_recognition_timeout error. 0 = no timeout. Only applies when
                 on_device=False. Default is 15.
+            continuous: Restart listening automatically (on the native side) each
+                time the platform ends a session (silence timeout or max duration).
+                Each session still delivers its own final on_result. Restarting
+                stops on stop(), cancel(), permanent errors, and cloud timeouts.
 
         Raises:
             SttError: If listening fails to start.
@@ -232,6 +253,7 @@ class FletStt(ft.Service):
                 "auto_punctuation": auto_punctuation,
                 "enable_haptic_feedback": enable_haptic_feedback,
                 "cloud_timeout_seconds": cloud_timeout_seconds,
+                "continuous": continuous,
             },
         )
         self._check_error(result)
